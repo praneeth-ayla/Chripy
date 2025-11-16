@@ -2,49 +2,51 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+	"strings"
 )
 
 func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
-	type ReqBody struct {
+	type parameters struct {
 		Body string `json:"body"`
 	}
 
-	type ResBody struct {
-		Error string `json:"error"`
-		Valid bool   `json:"valid"`
+	type returnVals struct {
+		CleanedBody string `json:"cleaned_body"`
 	}
-
-	defer r.Body.Close()
 
 	decoder := json.NewDecoder(r.Body)
-	reqBody := ReqBody{}
-	resBody := ResBody{}
+	reqBody := parameters{}
 	err := decoder.Decode(&reqBody)
 	if err != nil {
-		log.Printf("Error decoding body: %s", err)
-		w.WriteHeader(500)
-		resBody.Error = "Something went wrong"
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
 	}
 
-	if len(reqBody.Body) > 140 {
-		w.WriteHeader(400)
-		resBody.Error = "Chirp is too long"
-		resBody.Valid = false
-	} else {
-		w.WriteHeader(200)
-		resBody.Valid = true
+	const maxChirpLength = 140
+	if len(reqBody.Body) > maxChirpLength {
+		respondWithError(w, 400, "Chirp is too long", nil)
 	}
 
-	dat, err := json.Marshal(resBody)
-	if err != nil {
-		log.Printf("Error marshalling json: %s", err)
-		w.WriteHeader(500)
-		resBody.Error = "Something went wrong"
-		return
+	cleanString := profaneCleaner(reqBody.Body)
+	respondWithJSON(w, 200, returnVals{
+		CleanedBody: cleanString,
+	})
+}
+
+func profaneCleaner(str string) string {
+	words := strings.Split(str, " ")
+	profane := map[string]bool{
+		"kerfuffle": true,
+		"sharbert":  true,
+		"fornax":    true,
 	}
 
-	w.Write(dat)
+	for i, word := range words {
+		if profane[strings.ToLower(word)] {
+			words[i] = "****"
+		}
+	}
+
+	return strings.Join(words, " ")
 }
