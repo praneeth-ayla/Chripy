@@ -5,7 +5,19 @@ import (
 )
 
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	if cfg.platform != "dev" {
+		respondWithError(w, http.StatusForbidden, "Forbidden", nil)
+		return
+	}
+
+	err := cfg.db.ResetDB(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to reset", err)
+		return
+	}
+
 	cfg.fileserverHits.Store(0)
-	w.Write([]byte(http.StatusText(http.StatusAccepted)))
+
+	respondWithJSON(w, 200, nil)
 }
