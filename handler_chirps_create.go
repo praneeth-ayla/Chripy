@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/praneeth-ayla/Chirpy/internal/auth"
 	"github.com/praneeth-ayla/Chirpy/internal/database"
 )
 
@@ -20,17 +21,28 @@ type Chirp struct {
 
 func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserId uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	type response struct {
 		Chirp
 	}
 
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't get the headers", err)
+		return
+	}
+
+	userId, err := auth.ValidateJWT(bearerToken, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized", err)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	reqBody := parameters{}
-	err := decoder.Decode(&reqBody)
+	err = decoder.Decode(&reqBody)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
@@ -39,11 +51,12 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 	const maxChirpLength = 140
 	if len(reqBody.Body) > maxChirpLength {
 		respondWithError(w, 400, "Chirp is too long", nil)
+		return
 	}
 
 	cleanChirp := profaneCleaner(reqBody.Body)
 	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
-		UserID: reqBody.UserId,
+		UserID: userId,
 		Body:   cleanChirp,
 	})
 	if err != nil {
