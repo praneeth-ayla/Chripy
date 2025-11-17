@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"sort"
 
 	"github.com/google/uuid"
 )
@@ -63,6 +64,21 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 			UpdatedAt: chirp.UpdatedAt,
 			Body:      chirp.Body,
 			UserId:    chirp.UserID,
+		})
+	}
+
+	sortParam := r.URL.Query().Get("sort")
+
+	switch sortParam {
+	case "desc":
+		// Newest first
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
+		})
+	default:
+		// Default asc: oldest first
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.Before(chirps[j].CreatedAt)
 		})
 	}
 
