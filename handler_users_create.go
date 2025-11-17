@@ -19,7 +19,7 @@ type User struct {
 	RefreshToken string    `json:"refresh_token"`
 }
 
-func (cfg *apiConfig) handleUsersCreate(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
