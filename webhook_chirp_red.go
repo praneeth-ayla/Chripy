@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/praneeth-ayla/Chirpy/internal/auth"
 )
 
 func (cfg *apiConfig) webhookChirpRed(w http.ResponseWriter, r *http.Request) {
@@ -15,9 +16,15 @@ func (cfg *apiConfig) webhookChirpRed(w http.ResponseWriter, r *http.Request) {
 		} `json:"data"`
 	}
 
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil || apiKey != cfg.polkaKey {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized", err)
+		return
+	}
+
 	dec := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := dec.Decode(&params)
+	err = dec.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Couldn't decode parameters", err)
 		return
