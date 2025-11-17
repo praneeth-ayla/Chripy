@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/praneeth-ayla/Chirpy/internal/auth"
+	"github.com/praneeth-ayla/Chirpy/internal/database"
 )
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password          string `json:"password"`
-		Email             string `json:"email"`
-		ExpiriesInSeconds int    `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 	type response struct {
 		User
@@ -38,29 +38,36 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var expiry time.Duration
-	if params.ExpiriesInSeconds > 0 {
-		expiry = time.Duration(params.ExpiriesInSeconds) * time.Second
-
-		if expiry > time.Hour {
-			expiry = time.Hour
-		}
-	} else {
-		expiry = time.Hour
-	}
-
-	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, expiry)
+	jwtToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+		return
+	}
+
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+		return
+	}
+
+	_, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		UserID:    user.ID,
+		Token:     refreshToken,
+		ExpiresAt: time.Now().Add(time.Hour * 24 * 60),
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
-			Id:        user.ID,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-			Token:     token,
+			Id:           user.ID,
+			Email:        user.Email,
+			CreatedAt:    user.CreatedAt,
+			UpdatedAt:    user.UpdatedAt,
+			Token:        jwtToken,
+			RefreshToken: refreshToken,
 		},
 	})
 }
