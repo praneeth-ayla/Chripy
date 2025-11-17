@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (cfg *apiConfig) handlerChirpGet(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
 	chirpID := r.PathValue("chirpID")
 	id, err := uuid.Parse(chirpID)
 	if err != nil {
@@ -14,7 +14,7 @@ func (cfg *apiConfig) handlerChirpGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbChirp, err := cfg.db.GetChipr(r.Context(), id)
+	dbChirp, err := cfg.db.GetChirp(r.Context(), id)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Couldn't fetch chirp", err)
 		return
